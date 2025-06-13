@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { QueryExtractor } from './queryExtractor'
+import { BackendApiService } from './backendApiService'
 import type { Product, SearchParams } from '../lib/supabase'
 
 export interface SearchResponse {
@@ -13,11 +14,38 @@ export interface SearchResponse {
 
 export class ApiService {
   private static readonly SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
+  private static backendAvailable = false
 
-  // Search products using Edge Function
-  static async searchProducts(query: string, extractedParams?: SearchParams): Promise<SearchResponse> {
+  // Check if backend is available
+  static async checkBackendAvailability(): Promise<boolean> {
     try {
-      // Extract parameters if not provided
+      this.backendAvailable = await BackendApiService.checkHealth()
+      return this.backendAvailable
+    } catch (error) {
+      console.error('Backend not available:', error)
+      this.backendAvailable = false
+      return false
+    }
+  }
+
+  // Search products - try backend first, fallback to Supabase
+  static async searchProducts(query: string, extractedParams?: SearchParams): Promise<SearchResponse> {
+    // Try backend first if available
+    if (this.backendAvailable || await this.checkBackendAvailability()) {
+      try {
+        console.log('🔍 Searching via Python backend...')
+        const backendResponse = await BackendApiService.searchProducts(query, extractedParams)
+        console.log('✅ Backend search successful')
+        return backendResponse
+      } catch (error) {
+        console.error('❌ Backend search failed, falling back to Supabase:', error)
+        this.backendAvailable = false
+      }
+    }
+
+    // Fallback to Supabase Edge Functions
+    try {
+      console.log('🔍 Searching via Supabase Edge Functions...')
       const params = extractedParams || QueryExtractor.extractInfo(query)
       
       const response = await fetch(`${this.SUPABASE_FUNCTIONS_URL}/search-products`, {
@@ -38,17 +66,60 @@ export class ApiService {
       }
 
       const data = await response.json()
+      console.log('✅ Supabase search successful')
       return data
     } catch (error) {
-      console.error('Error searching products:', error)
-      // Fallback to local search if Edge Function fails
+      console.error('❌ Supabase search failed, using local fallback:', error)
       return this.fallbackLocalSearch(query, extractedParams)
+    }
+  }
+
+  // Get trending products - try backend first, fallback to Supabase
+  static async getTrendingProducts(category?: string, limit = 10): Promise<Product[]> {
+    // Try backend first if available
+    if (this.backendAvailable || await this.checkBackendAvailability()) {
+      try {
+        console.log('📈 Getting trending products from backend...')
+        const products = await BackendApiService.getTrendingProducts(category, limit)
+        console.log('✅ Backend trending products successful')
+        return products
+      } catch (error) {
+        console.error('❌ Backend trending failed, falling back to Supabase:', error)
+        this.backendAvailable = false
+      }
+    }
+
+    // Fallback to Supabase Edge Functions
+    try {
+      console.log('📈 Getting trending products from Supabase...')
+      const params = new URLSearchParams()
+      if (category) params.append('category', category)
+      params.append('limit', limit.toString())
+
+      const response = await fetch(`${this.SUPABASE_FUNCTIONS_URL}/trending-products?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Supabase trending products successful')
+      return data.products || []
+    } catch (error) {
+      console.error('❌ All trending product sources failed:', error)
+      return []
     }
   }
 
   // Fallback to local database search
   private static async fallbackLocalSearch(query: string, params?: SearchParams): Promise<SearchResponse> {
     try {
+      console.log('🔍 Using local database fallback...')
       const searchParams = params || QueryExtractor.extractInfo(query)
       
       let dbQuery = supabase
@@ -104,6 +175,7 @@ export class ApiService {
         return { products: [], total: 0, sources: { local: 0, external: 0 } }
       }
 
+      console.log('✅ Local database search successful')
       return {
         products: data || [],
         total: data?.length || 0,
@@ -139,32 +211,6 @@ export class ApiService {
     }
   }
 
-  // Get trending products
-  static async getTrendingProducts(category?: string, limit = 10): Promise<Product[]> {
-    try {
-      const params = new URLSearchParams()
-      if (category) params.append('category', category)
-      params.append('limit', limit.toString())
-
-      const response = await fetch(`${this.SUPABASE_FUNCTIONS_URL}/trending-products?${params}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      return data.products || []
-    } catch (error) {
-      console.error('Error getting trending products:', error)
-      return []
-    }
-  }
-
   // Get products by category
   static async getProductsByCategory(category: string, limit = 10): Promise<Product[]> {
     try {
@@ -174,5 +220,17 @@ export class ApiService {
       console.error('Error getting products by category:', error)
       return []
     }
+  }
+
+  // Get backend statistics
+  static async getBackendStats(): Promise<any> {
+    if (this.backendAvailable || await this.checkBackendAvailability()) {
+      try {
+        return await BackendApiService.getStats()
+      } catch (error) {
+        console.error('Error getting backend stats:', error)
+      }
+    }
+    return null
   }
 }

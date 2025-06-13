@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, MessageSquare, ShoppingCart, Utensils, ShirtIcon, Home, Sparkles, Send, User, Bot, Coffee, Pizza, Apple, Shirt, Watch, Sofa, Lightbulb, Carrot, Mic, MicOff, Star, Heart, TrendingUp, Zap, Eye, Target, Compass, MapPin, Clock, ShoppingBag, ExternalLink } from 'lucide-react';
 import { ApiService } from './services/apiService';
 import { QueryExtractor } from './services/queryExtractor';
+import { BackendStatus } from './components/BackendStatus';
 import type { Product } from './lib/supabase';
 
 interface Message {
@@ -36,7 +37,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm FYND AI, your intelligent shopping assistant. I can help you find food, fashion, groceries, and everyday essentials from multiple sources including Flipkart. What are you looking for today?",
+      text: "Hello! I'm FYND AI, your intelligent shopping assistant. I can help you find products from our Flipkart database and other sources. What are you looking for today?",
       isUser: false,
       timestamp: new Date()
     }
@@ -46,6 +47,7 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
+  const [backendConnected, setBackendConnected] = useState(false);
   
   const recognitionRef = useRef<any>(null);
 
@@ -97,7 +99,7 @@ function App() {
 
   const quickSuggestions: QuickSuggestion[] = [
     {
-      text: "Find the best smartphones under $500",
+      text: "Find smartphones under ₹20000",
       icon: <Pizza className="w-4 h-4" />,
       gradient: "from-orange-500 to-red-500"
     },
@@ -107,12 +109,12 @@ function App() {
       gradient: "from-purple-500 to-pink-500"
     },
     {
-      text: "Help me find organic groceries",
+      text: "Help me find electronics",
       icon: <Apple className="w-4 h-4" />,
       gradient: "from-green-500 to-emerald-500"
     },
     {
-      text: "What are the top-rated electronics?",
+      text: "What are the top-rated products?",
       icon: <Star className="w-4 h-4" />,
       gradient: "from-blue-500 to-cyan-500"
     }
@@ -120,10 +122,10 @@ function App() {
 
   const categories = [
     {
-      title: 'Food & Dining',
+      title: 'Electronics',
       items: [
-        { icon: <Utensils className="w-6 h-6" />, name: 'Restaurants', gradient: 'from-orange-500 to-red-500' },
-        { icon: <ShoppingCart className="w-6 h-6" />, name: 'Groceries', gradient: 'from-green-500 to-emerald-500' },
+        { icon: <Utensils className="w-6 h-6" />, name: 'Smartphones', gradient: 'from-orange-500 to-red-500' },
+        { icon: <ShoppingCart className="w-6 h-6" />, name: 'Laptops', gradient: 'from-green-500 to-emerald-500' },
       ]
     },
     {
@@ -137,7 +139,7 @@ function App() {
       title: 'Home & Living',
       items: [
         { icon: <Home className="w-6 h-6" />, name: 'Furniture', gradient: 'from-amber-500 to-orange-500' },
-        { icon: <ShoppingCart className="w-6 h-6" />, name: 'Utilities', gradient: 'from-teal-500 to-green-500' },
+        { icon: <ShoppingCart className="w-6 h-6" />, name: 'Appliances', gradient: 'from-teal-500 to-green-500' },
       ]
     }
   ];
@@ -165,7 +167,7 @@ function App() {
       // Create response message
       const responses = [
         "I found some great options for you! Here are the top recommendations:",
-        "Perfect! I've curated these excellent choices from multiple sources:",
+        "Perfect! I've curated these excellent choices from our database:",
         "Great choice! Here are some highly-rated options I discovered:",
         "Excellent! I've found these popular items that match your request:"
       ];
@@ -352,12 +354,23 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
+      {/* Backend Status Component */}
+      <BackendStatus onStatusChange={setBackendConnected} />
+      
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-gray-900 to-blue-900/20"></div>
       
       {/* Top Navigation with Logo */}
       <nav className="relative z-50 p-6">
-        <FYNDLogo />
+        <div className="flex items-center justify-between">
+          <FYNDLogo />
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+            <span className="text-gray-300">
+              {backendConnected ? 'Backend Connected' : 'Using Fallback'}
+            </span>
+          </div>
+        </div>
       </nav>
 
       {/* Hero Section */}
@@ -368,7 +381,7 @@ function App() {
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full px-4 py-2 mb-6 backdrop-blur-sm border border-purple-500/30">
               <Sparkles className="w-4 h-4 text-purple-400" />
               <span className="text-sm font-medium bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                AI-Powered Search
+                AI-Powered Search with Python Backend
               </span>
             </div>
             
@@ -380,10 +393,10 @@ function App() {
             </h1>
             
             <p className="text-xl text-gray-300 mb-4 leading-relaxed max-w-2xl">
-              Your smart search assistant that understands what you mean - not just what you type.
+              Your smart search assistant powered by Python backend with Flipkart product database.
             </p>
             <p className="text-xl text-gray-300 mb-8 leading-relaxed max-w-2xl">
-              From fashion to food, home decor to groceries, search across Flipkart and more.
+              Search through thousands of products with intelligent filtering and ranking.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -435,7 +448,7 @@ function App() {
                 {/* Orbiting Icons */}
                 <div className="absolute inset-0 animate-spin-slow">
                   <div className="relative w-full h-full">
-                    {/* Food Icon */}
+                    {/* Electronics Icon */}
                     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
                       <Pizza className="w-6 h-6 text-white" />
                     </div>
@@ -445,12 +458,12 @@ function App() {
                       <Shirt className="w-6 h-6 text-white" />
                     </div>
                     
-                    {/* Grocery Icon */}
+                    {/* Home Icon */}
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
                       <Apple className="w-6 h-6 text-white" />
                     </div>
                     
-                    {/* Home Icon */}
+                    {/* Appliances Icon */}
                     <div className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
                       <Home className="w-6 h-6 text-white" />
                     </div>
@@ -488,7 +501,7 @@ function App() {
                   Trending Products
                 </span>
               </h2>
-              <p className="text-gray-300 text-lg">Popular items from multiple sources including Flipkart</p>
+              <p className="text-gray-300 text-lg">Popular items from our Flipkart database</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -567,8 +580,7 @@ function App() {
                       {message.searchInfo && (
                         <div className="mt-2 text-xs text-gray-300">
                           Found {message.searchInfo.total} products 
-                          ({message.searchInfo.sources.local} local
-                          {message.searchInfo.sources.flipkart ? `, ${message.searchInfo.sources.flipkart} Flipkart` : ''}
+                          ({message.searchInfo.sources.local} from database
                           , {message.searchInfo.sources.external} external)
                         </div>
                       )}
@@ -616,7 +628,7 @@ function App() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask me about food, fashion, groceries, or essentials..."
+                  placeholder="Ask me about products, brands, or categories..."
                   className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent"
                 />
                 
@@ -704,7 +716,7 @@ function App() {
             Intelligent search for the modern world. Find what you need, when you need it.
           </p>
           <p className="text-gray-500 text-sm mt-2">
-            Powered by multiple shopping APIs, Flipkart data, and local database
+            Powered by Python backend with Flipkart database and intelligent search algorithms
           </p>
         </div>
       </footer>
